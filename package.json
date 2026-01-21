@@ -1,0 +1,226 @@
+{
+  "name": "git-test-checklist",
+  "displayName": "Git AI 自动化测试",
+  "description": "Automatically analyze Git commits and generate smart test checklists - works with any Git project",
+  "version": "3.0.0",
+  "publisher": "alex-deng",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "git",
+    "test",
+    "checklist",
+    "commit",
+    "testing"
+  ],
+  "activationEvents": [
+    "onCommand:gitTestChecklist.generate",
+    "onCommand:gitTestChecklist.generate1",
+    "onCommand:gitTestChecklist.generate5",
+    "onCommand:gitTestChecklist.generate10",
+    "onCommand:gitTestChecklist.viewHistory",
+    "onCommand:gitTestChecklist.enableGitHook",
+    "onCommand:gitTestChecklist.disableGitHook",
+    "onView:gitTestChecklistView"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitTestChecklist.generate",
+        "title": "生成测试清单（自定义数量）",
+        "category": "Git 测试",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "gitTestChecklist.generate1",
+        "title": "生成最近 1 次提交的测试清单",
+        "category": "Git 测试",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "gitTestChecklist.generate5",
+        "title": "生成最近 5 次提交的测试清单",
+        "category": "Git 测试",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "gitTestChecklist.generate10",
+        "title": "生成最近 10 次提交的测试清单",
+        "category": "Git 测试",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "gitTestChecklist.enableGitHook",
+        "title": "开启 Git 提交钩子（自动生成清单）",
+        "category": "Git 测试",
+        "icon": "$(bell)"
+      },
+      {
+        "command": "gitTestChecklist.disableGitHook",
+        "title": "关闭 Git 提交钩子",
+        "category": "Git 测试",
+        "icon": "$(bell-slash)"
+      },
+      {
+        "command": "gitTestChecklist.viewHistory",
+        "title": "查看 Git 提交历史图",
+        "category": "Git 测试",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "gitTestChecklist.openChecklist",
+        "title": "打开测试清单",
+        "category": "Git 测试",
+        "icon": "$(file)"
+      },
+      {
+        "command": "gitTestChecklist.viewCommit",
+        "title": "查看提交详情",
+        "category": "Git 测试",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "gitTestChecklist.generateEnhanced",
+        "title": "生成测试清单（增强版 - 含统计）",
+        "category": "Git 测试",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "gitTestChecklist.generateByAuthor",
+        "title": "按作者生成测试清单",
+        "category": "Git 测试",
+        "icon": "$(account)"
+      },
+      {
+        "command": "gitTestChecklist.generateByDate",
+        "title": "按日期范围生成测试清单",
+        "category": "Git 测试",
+        "icon": "$(calendar)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitTestChecklist",
+          "title": "Git 测试清单",
+          "icon": "$(checklist)"
+        }
+      ]
+    },
+    "views": {
+      "gitTestChecklist": [
+        {
+          "type": "webview",
+          "id": "gitTestChecklistView",
+          "name": "Git 测试清单",
+          "icon": "$(checklist)",
+          "contextualTitle": "Git 测试清单"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "gitTestChecklist.generate",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.generate1",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.generate5",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.generate10",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.viewHistory",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.enableGitHook",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "gitTestChecklist.disableGitHook",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gitTestChecklist.generate",
+          "when": "view == gitTestChecklistView",
+          "group": "navigation"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gitTestChecklist.generate10",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Git 测试清单",
+      "properties": {
+        "gitTestChecklist.defaultCommitCount": {
+          "type": "number",
+          "default": 10,
+          "description": "默认分析的提交数量"
+        },
+        "gitTestChecklist.outputFileName": {
+          "type": "string",
+          "default": "test-checklist.md",
+          "description": "输出文件名"
+        },
+        "gitTestChecklist.autoOpenAfterGenerate": {
+          "type": "boolean",
+          "default": true,
+          "description": "生成后自动打开测试清单"
+        },
+        "gitTestChecklist.includeStatsDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "默认包含详细统计信息"
+        },
+        "gitTestChecklist.customTestRules": {
+          "type": "object",
+          "default": {},
+          "description": "自定义测试规则（关键词 -> 测试项映射）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "16.x",
+    "@vscode/test-electron": "^2.3.0",
+    "eslint": "^8.35.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "simple-git": "^3.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/git-test-checklist"
+  },
+  "license": "MIT"
+}
