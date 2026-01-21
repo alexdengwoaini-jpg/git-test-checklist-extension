@@ -69,3 +69,16 @@
 
 ---
 
+## update: latest test checklist
+
+- **Hash**: `e109dfe`
+- **Author**: alex.deng
+- **Date**: 2026-01-21 18:12:06 +0800
+
+### Test Items
+- [ ] Functional test
+- [ ] Regression test
+- [ ] Code review
+
+---
+

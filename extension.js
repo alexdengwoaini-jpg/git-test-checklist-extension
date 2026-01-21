@@ -31,16 +31,19 @@ function activate(context) {
     // 注册命令：生成1次提交
     let generate1Cmd = vscode.commands.registerCommand('gitTestChecklist.generate1', async () => {
         await generateTestChecklist(1);
+        await openTestChecklist();
     });
 
     // 注册命令：生成5次提交
     let generate5Cmd = vscode.commands.registerCommand('gitTestChecklist.generate5', async () => {
         await generateTestChecklist(5);
+        await openTestChecklist();
     });
 
     // 注册命令：生成10次提交
     let generate10Cmd = vscode.commands.registerCommand('gitTestChecklist.generate10', async () => {
         await generateTestChecklist(10);
+        await openTestChecklist();
     });
 
     // 注册命令：开启 Git 钩子
@@ -251,35 +254,181 @@ async function generateTestChecklist(count, options = {}) {
             // Initialize output and stats
             let output = [];
             const stats = { authors: {}, totalFiles: 0 };
-            const allTests = [];
+            const allCommitData = [];
 
-            output.push('# Git Commit Summary and Test Checklist');
+            output.push('# Git 提交测试清单');
             output.push('');
-            output.push(`**Generated**: ${new Date().toISOString().replace('T', ' ').substring(0, 19)}`);
-            output.push(`**Commits Analyzed**: ${commits.length}`);
-            if (options.author) output.push(`**Author Filter**: ${options.author}`);
-            if (options.since) output.push(`**Since**: ${options.since}`);
-            if (options.until) output.push(`**Until**: ${options.until}`);
+            output.push(`生成时间: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} | 分析提交数: ${commits.length}`);
+            if (options.author) output.push(`作者筛选: ${options.author}`);
+            if (options.since) output.push(`日期范围: ${options.since} ~ ${options.until || '至今'}`);
             output.push('');
             output.push('---');
             output.push('');
-            output.push('## Commit Overview');
-            output.push('');
 
-            // Test rules
+            // 测试规则（详细中文，包含功能说明）
             const testRules = {
-                'fix|bug': ['Verify bug fix is working', 'Test edge cases and boundary conditions'],
-                'user|login|auth': ['Test user authentication flow', 'Test user role permissions', 'Verify user data integrity'],
-                'wechat|notification|message': ['Test notification sending', 'Verify message content', 'Check API integration'],
-                'export|excel|import': ['Test data export functionality', 'Verify exported file format', 'Test export with no data'],
-                'ticket|service|order': ['Test ticket/order creation', 'Verify status transitions', 'Check query APIs'],
-                'database|sql|migration': ['Verify database migration', 'Check data integrity', 'Test SQL query performance'],
-                'payment|pay': ['Test payment flow', 'Verify payment callback', 'Check order status update'],
-                'api': ['Test API endpoints', 'Verify request validation', 'Check response format'],
-                'security': ['Check security vulnerabilities', 'Test permission control', 'Verify data encryption']
+                'fix|bug|修复|修改|bugfix': {
+                    feature: '缺陷修复',
+                    tests: [
+                        '验证原始 Bug 问题是否已解决',
+                        '测试修复后的正常业务流程',
+                        '边界条件和异常输入测试',
+                        '回归测试：确保修复未影响其他功能'
+                    ]
+                },
+                'user|login|auth|用户|登录|认证|注册|密码': {
+                    feature: '用户认证模块',
+                    tests: [
+                        '用户登录/注册流程测试',
+                        '密码强度验证和加密测试',
+                        '用户角色和权限控制测试',
+                        'Token/Session 有效期测试',
+                        '多端登录和踢出机制测试'
+                    ]
+                },
+                'wechat|notification|message|微信|通知|消息|推送|短信|邮件': {
+                    feature: '消息通知模块',
+                    tests: [
+                        '消息发送成功率测试',
+                        '消息内容格式和模板验证',
+                        '消息推送延迟测试',
+                        '消息状态回调处理测试',
+                        '批量发送性能测试'
+                    ]
+                },
+                'export|excel|import|导出|导入|download|upload|上传|下载': {
+                    feature: '数据导入导出模块',
+                    tests: [
+                        '数据导出格式正确性验证',
+                        '大数据量导出性能测试',
+                        '导入数据校验和错误提示',
+                        '导入数据完整性验证',
+                        '文件格式兼容性测试(xlsx/csv/pdf)'
+                    ]
+                },
+                'ticket|service|order|工单|服务|订单|流程|审批': {
+                    feature: '工单/订单管理模块',
+                    tests: [
+                        '工单创建和提交流程测试',
+                        '工单状态流转测试(待处理→处理中→已完成)',
+                        '工单分配和转派功能测试',
+                        '工单查询和筛选功能测试',
+                        '工单超时提醒和升级测试'
+                    ]
+                },
+                'database|sql|migration|数据库|表|字段|索引': {
+                    feature: '数据库变更',
+                    tests: [
+                        '数据库迁移脚本执行验证',
+                        '新增字段默认值验证',
+                        '索引创建和查询性能测试',
+                        '数据完整性和约束测试',
+                        '数据库回滚脚本测试'
+                    ]
+                },
+                'payment|pay|支付|退款|账单|余额|钱包': {
+                    feature: '支付财务模块',
+                    tests: [
+                        '支付流程完整性测试',
+                        '支付回调处理测试',
+                        '退款流程和状态测试',
+                        '账单生成和对账测试',
+                        '支付异常处理(超时/失败)测试'
+                    ]
+                },
+                'api|接口|endpoint|request|response': {
+                    feature: 'API 接口',
+                    tests: [
+                        'API 请求参数校验测试',
+                        'API 响应数据格式验证',
+                        'API 错误码和异常处理测试',
+                        'API 权限和鉴权测试',
+                        'API 性能和并发测试'
+                    ]
+                },
+                'security|安全|权限|加密|xss|csrf|注入': {
+                    feature: '安全模块',
+                    tests: [
+                        'SQL 注入漏洞测试',
+                        'XSS 跨站脚本攻击测试',
+                        'CSRF 跨站请求伪造测试',
+                        '敏感数据加密存储验证',
+                        '接口权限控制测试'
+                    ]
+                },
+                'feat|feature|新增|添加|新功能': {
+                    feature: '新功能开发',
+                    tests: [
+                        '新功能完整业务流程测试',
+                        '新功能边界条件测试',
+                        '新功能与现有功能兼容性测试',
+                        '新功能性能基准测试',
+                        '新功能用户体验测试'
+                    ]
+                },
+                'refactor|重构|优化|performance|性能': {
+                    feature: '代码重构/性能优化',
+                    tests: [
+                        '重构后功能一致性验证',
+                        '重构前后性能对比测试',
+                        '接口响应时间测试',
+                        '内存和资源占用测试',
+                        '高并发压力测试'
+                    ]
+                },
+                'style|样式|UI|ui|css|界面|布局|颜色': {
+                    feature: 'UI 界面样式',
+                    tests: [
+                        'UI 界面显示正确性检查',
+                        '不同分辨率适配测试',
+                        '移动端/PC端兼容性测试',
+                        '主题切换(深色/浅色)测试',
+                        '交互动画和过渡效果测试'
+                    ]
+                },
+                'config|配置|setting|参数|环境': {
+                    feature: '配置管理',
+                    tests: [
+                        '配置项生效验证',
+                        '配置热更新测试',
+                        '不同环境配置切换测试',
+                        '配置默认值验证',
+                        '配置项边界值测试'
+                    ]
+                },
+                'cache|缓存|redis|memory': {
+                    feature: '缓存模块',
+                    tests: [
+                        '缓存读写正确性测试',
+                        '缓存过期策略测试',
+                        '缓存穿透/击穿/雪崩测试',
+                        '缓存与数据库一致性测试',
+                        '缓存清理和刷新测试'
+                    ]
+                },
+                'log|日志|audit|审计|记录': {
+                    feature: '日志审计模块',
+                    tests: [
+                        '日志记录完整性验证',
+                        '日志格式和内容正确性',
+                        '敏感信息脱敏测试',
+                        '日志查询和筛选测试',
+                        '日志存储和清理策略测试'
+                    ]
+                },
+                'report|报表|统计|chart|图表|dashboard': {
+                    feature: '报表统计模块',
+                    tests: [
+                        '报表数据准确性验证',
+                        '报表生成性能测试',
+                        '图表展示正确性测试',
+                        '报表导出功能测试',
+                        '报表筛选条件测试'
+                    ]
+                }
             };
 
-            // Process each commit
+            // 收集所有提交数据
             let commitCount = 0;
             for (const commit of commits) {
                 if (!commit) continue;
@@ -295,20 +444,14 @@ async function generateTestChecklist(count, options = {}) {
                 if (!stats.authors[author]) stats.authors[author] = 0;
                 stats.authors[author]++;
 
-                output.push(`### Commit #${commitCount}: ${message}`);
-                output.push(`- **Hash**: \`${hash}\``);
-                output.push(`- **Author**: ${author}`);
-                output.push(`- **Date**: ${date}`);
-                output.push('');
-
                 // Get changed files
+                let changedFiles = [];
                 try {
                     const { stdout: fileStats } = await execPromise(
                         `git show --stat --pretty=format:"" ${hash}`,
                         { cwd: workspacePath }
                     );
                     
-                    const changedFiles = [];
                     const lines = fileStats.split('\n');
                     for (const line of lines) {
                         const match = line.match(/^\s*(.+?)\s+\|/);
@@ -317,150 +460,232 @@ async function generateTestChecklist(count, options = {}) {
                             stats.totalFiles++;
                         }
                     }
-
-                    if (changedFiles.length > 0) {
-                        output.push('**Changed files**:');
-                        output.push('');
-                        for (const file of changedFiles.slice(0, 10)) {
-                            output.push(`- \`${file}\``);
-                        }
-                        if (changedFiles.length > 10) {
-                            output.push(`- ... and ${changedFiles.length - 10} more files`);
-                        }
-                        output.push('');
-                    }
-
-                    // Generate test suggestions
-                    const tests = [];
-                    const msgLower = message.toLowerCase();
-
-                    for (const [pattern, suggestions] of Object.entries(testRules)) {
-                        if (new RegExp(pattern, 'i').test(msgLower)) {
-                            tests.push(...suggestions);
-                        }
-                    }
-
-                    // File type based tests
-                    for (const file of changedFiles) {
-                        if (/Controller\.(cs|java|ts|js)$/i.test(file) && !tests.includes('Test API endpoints')) {
-                            tests.push('Test API endpoints');
-                        }
-                        if (/Service\.(cs|java|ts|js)$/i.test(file) && !tests.includes('Test business logic')) {
-                            tests.push('Test business logic');
-                        }
-                        if (/\.sql$/i.test(file) && !tests.includes('Verify database schema changes')) {
-                            tests.push('Verify database schema changes');
-                        }
-                    }
-
-                    if (tests.length > 0) {
-                        allTests.push({ hash, message, tests: [...new Set(tests)] });
-                    }
                 } catch (e) {
                     // Skip file stats if error
                 }
 
-                output.push('---');
-                output.push('');
+                // Generate test suggestions
+                const tests = [];
+                const features = [];
+                const msgLower = message.toLowerCase();
+
+                for (const [pattern, ruleData] of Object.entries(testRules)) {
+                    if (new RegExp(pattern, 'i').test(msgLower)) {
+                        if (!features.includes(ruleData.feature)) {
+                            features.push(ruleData.feature);
+                        }
+                        // 添加前2-3个最相关的测试项
+                        const relevantTests = ruleData.tests.slice(0, 3);
+                        for (const test of relevantTests) {
+                            if (!tests.includes(test)) {
+                                tests.push(test);
+                            }
+                        }
+                    }
+                }
+
+                // 根据文件类型添加测试建议
+                for (const file of changedFiles) {
+                    const fileName = file.toLowerCase();
+                    
+                    if (/controller\.(cs|java|ts|js)$/i.test(file)) {
+                        if (!features.includes('API 接口')) features.push('API 接口');
+                        if (!tests.includes('API 请求参数校验测试')) tests.push('API 请求参数校验测试');
+                        if (!tests.includes('API 响应数据格式验证')) tests.push('API 响应数据格式验证');
+                    }
+                    if (/service\.(cs|java|ts|js)$/i.test(file)) {
+                        if (!features.includes('业务逻辑层')) features.push('业务逻辑层');
+                        if (!tests.includes('业务逻辑正确性测试')) tests.push('业务逻辑正确性测试');
+                    }
+                    if (/repository|dao|mapper/i.test(fileName)) {
+                        if (!features.includes('数据访问层')) features.push('数据访问层');
+                        if (!tests.includes('数据库操作正确性测试')) tests.push('数据库操作正确性测试');
+                    }
+                    if (/\.sql$/i.test(file)) {
+                        if (!features.includes('数据库脚本')) features.push('数据库脚本');
+                        if (!tests.includes('SQL 脚本执行验证')) tests.push('SQL 脚本执行验证');
+                        if (!tests.includes('数据迁移完整性测试')) tests.push('数据迁移完整性测试');
+                    }
+                    if (/\.(css|scss|less)$/i.test(file)) {
+                        if (!features.includes('样式文件')) features.push('样式文件');
+                        if (!tests.includes('页面样式显示检查')) tests.push('页面样式显示检查');
+                    }
+                    if (/\.(vue|jsx|tsx)$/i.test(file)) {
+                        if (!features.includes('前端组件')) features.push('前端组件');
+                        if (!tests.includes('组件渲染和交互测试')) tests.push('组件渲染和交互测试');
+                        if (!tests.includes('组件状态管理测试')) tests.push('组件状态管理测试');
+                    }
+                    if (/\.json$/i.test(file) && /config|setting|package/i.test(fileName)) {
+                        if (!features.includes('配置文件')) features.push('配置文件');
+                        if (!tests.includes('配置项生效验证')) tests.push('配置项生效验证');
+                    }
+                    if (/test|spec/i.test(fileName)) {
+                        if (!features.includes('测试用例')) features.push('测试用例');
+                        if (!tests.includes('单元测试覆盖率检查')) tests.push('单元测试覆盖率检查');
+                    }
+                    if (/util|helper|common/i.test(fileName)) {
+                        if (!features.includes('工具函数')) features.push('工具函数');
+                        if (!tests.includes('工具函数单元测试')) tests.push('工具函数单元测试');
+                    }
+                    if (/model|entity|dto|vo/i.test(fileName)) {
+                        if (!features.includes('数据模型')) features.push('数据模型');
+                        if (!tests.includes('数据模型字段验证')) tests.push('数据模型字段验证');
+                    }
+                }
+
+                // 如果没有匹配到任何规则，添加通用测试
+                if (tests.length === 0) {
+                    tests.push('功能正确性验证');
+                    tests.push('回归测试');
+                }
+
+                allCommitData.push({
+                    index: commitCount,
+                    hash,
+                    author,
+                    date,
+                    message,
+                    files: changedFiles,
+                    features: features,
+                    tests: [...new Set(tests)]
+                });
 
                 progress.report({ 
                     increment: 40 / commits.length, 
-                    message: `Processing commit ${commitCount}/${commits.length}...` 
+                    message: `处理提交 ${commitCount}/${commits.length}...` 
                 });
             }
 
-            // Add test checklist
-            output.push('## Test Checklist');
+            // 输出提交汇总表格
+            output.push('## 提交汇总');
             output.push('');
-            output.push('Based on the commits above, please perform the following tests:');
-            output.push('');
-
-            let testNumber = 1;
-            for (const item of allTests) {
-                output.push(`### Test Item #${testNumber} (Commit: \`${item.hash}\`)`);
-                output.push(`**Related commit**: ${item.message}`);
-                output.push('');
-                output.push('**Test items**:');
-                for (const test of item.tests) {
-                    output.push(`- [ ] ${test}`);
-                }
-                output.push('');
-                testNumber++;
+            output.push('| 序号 | 哈希 | 作者 | 时间 | 提交信息 | 变更文件数 |');
+            output.push('|:----:|------|------|------|----------|:----------:|');
+            for (const c of allCommitData) {
+                output.push(`| ${c.index} | \`${c.hash}\` | ${c.author} | ${c.date} | ${c.message} | ${c.files.length} |`);
             }
+            output.push('');
+            output.push('---');
+            output.push('');
 
-            // Add statistics if requested
+            // 输出变更文件汇总表格
+            output.push('## 变更文件汇总');
+            output.push('');
+            output.push('| 提交哈希 | 提交信息 | 文件路径 | 文件类型 |');
+            output.push('|----------|----------|----------|----------|');
+            for (const c of allCommitData) {
+                for (let i = 0; i < c.files.length; i++) {
+                    const file = c.files[i];
+                    // 获取文件类型
+                    let fileType = '其他';
+                    if (/\.(js|ts|jsx|tsx)$/i.test(file)) fileType = 'JavaScript/TypeScript';
+                    else if (/\.(css|scss|less)$/i.test(file)) fileType = '样式文件';
+                    else if (/\.(html|vue)$/i.test(file)) fileType = '页面/组件';
+                    else if (/\.(json|xml|yaml|yml)$/i.test(file)) fileType = '配置文件';
+                    else if (/\.(sql)$/i.test(file)) fileType = 'SQL脚本';
+                    else if (/\.(md|txt)$/i.test(file)) fileType = '文档';
+                    else if (/\.(jpg|png|gif|svg)$/i.test(file)) fileType = '图片';
+                    else if (/\.(cs|java)$/i.test(file)) fileType = '后端代码';
+                    
+                    if (i === 0) {
+                        output.push(`| \`${c.hash}\` | ${c.message} | \`${file}\` | ${fileType} |`);
+                    } else {
+                        output.push(`| | | \`${file}\` | ${fileType} |`);
+                    }
+                }
+            }
+            output.push('');
+            output.push('---');
+            output.push('');
+
+            // 输出测试建议表格
+            output.push('## 测试建议');
+            output.push('');
+            output.push('| 提交哈希 | 提交信息 | 涉及功能模块 | 建议测试项 | 状态 |');
+            output.push('|----------|----------|--------------|------------|:----:|');
+            for (const c of allCommitData) {
+                const featureStr = c.features && c.features.length > 0 ? c.features.join('、') : '通用';
+                if (c.tests.length === 0) {
+                    output.push(`| \`${c.hash}\` | ${c.message} | ${featureStr} | 功能正确性验证 | [ ] |`);
+                } else {
+                    for (let i = 0; i < c.tests.length; i++) {
+                        if (i === 0) {
+                            output.push(`| \`${c.hash}\` | ${c.message} | ${featureStr} | ${c.tests[i]} | [ ] |`);
+                        } else {
+                            output.push(`| | | | ${c.tests[i]} | [ ] |`);
+                        }
+                    }
+                }
+            }
+            output.push('');
+            output.push('---');
+            output.push('');
+
+            // 通用回归测试
+            output.push('## 通用回归测试');
+            output.push('');
+            output.push('| 测试项 | 状态 |');
+            output.push('|--------|:----:|');
+            output.push('| 核心功能回归 | [ ] |');
+            output.push('| 用户登录认证 | [ ] |');
+            output.push('| 数据导入导出 | [ ] |');
+            output.push('| API 响应验证 | [ ] |');
+            output.push('| 数据库完整性 | [ ] |');
+            output.push('');
+
+            // 添加统计信息
             if (options.includeStats) {
                 output.push('---');
                 output.push('');
-                output.push('## Statistics');
+                output.push('## 统计信息');
                 output.push('');
-                output.push('### Summary');
-                output.push(`- **Total Commits**: ${commitCount}`);
-                output.push(`- **Total Files Changed**: ${stats.totalFiles}`);
-                output.push(`- **Contributors**: ${Object.keys(stats.authors).length}`);
+                output.push('| 指标 | 数值 |');
+                output.push('|------|------|');
+                output.push(`| 总提交数 | ${commitCount} |`);
+                output.push(`| 变更文件数 | ${stats.totalFiles} |`);
+                output.push(`| 贡献者数 | ${Object.keys(stats.authors).length} |`);
                 output.push('');
 
-                output.push('### Author Contributions');
+                output.push('### 作者贡献');
+                output.push('');
+                output.push('| 作者 | 提交数 | 占比 |');
+                output.push('|------|--------|------|');
                 const sortedAuthors = Object.entries(stats.authors).sort((a, b) => b[1] - a[1]);
                 for (const [author, cnt] of sortedAuthors) {
                     const percentage = ((cnt / commitCount) * 100).toFixed(1);
-                    output.push(`- **${author}**: ${cnt} commits (${percentage}%)`);
+                    output.push(`| ${author} | ${cnt} | ${percentage}% |`);
                 }
                 output.push('');
             }
 
-            // Group by author if requested
+            // 按作者分组
             if (options.groupByAuthor && commits.length > 0) {
                 output.push('---');
                 output.push('');
-                output.push('## Commits by Author');
+                output.push('## 按作者分组');
                 output.push('');
 
                 const authorGroups = {};
-                for (const commit of commits) {
-                    const parts = commit.split('|');
-                    const hash = parts[0] || '';
-                    const author = parts[1] || '';
-                    const date = parts[2] || '';
-                    const message = parts.slice(3).join('|') || '';
-                    
-                    if (!authorGroups[author]) authorGroups[author] = [];
-                    authorGroups[author].push({ hash, message, date });
+                for (const c of allCommitData) {
+                    if (!authorGroups[c.author]) authorGroups[c.author] = [];
+                    authorGroups[c.author].push(c);
                 }
 
                 for (const [author, authorCommits] of Object.entries(authorGroups)) {
-                    output.push(`### ${author} (${authorCommits.length} commits)`);
+                    output.push(`### ${author}（${authorCommits.length} 次提交）`);
                     output.push('');
+                    output.push('| 哈希 | 提交信息 | 时间 | 文件数 |');
+                    output.push('|------|----------|------|:------:|');
                     for (const c of authorCommits) {
-                        output.push(`- \`${c.hash}\` - ${c.message} (${c.date})`);
+                        output.push(`| \`${c.hash}\` | ${c.message} | ${c.date} | ${c.files.length} |`);
                     }
                     output.push('');
                 }
             }
 
-            // General regression tests
-            output.push('### General Regression Tests');
-            output.push('- [ ] Core functionality regression');
-            output.push('- [ ] User login and authentication');
-            output.push('- [ ] Data import/export features');
-            output.push('- [ ] API response validation');
-            output.push('- [ ] Database migration verification');
-            output.push('');
-
-            // Git commands reference
             output.push('---');
             output.push('');
-            output.push('## View Detailed Changes');
-            output.push('');
-            output.push('To view detailed code differences for a specific commit:');
-            output.push('```bash');
-            output.push('git show <commit-hash>');
-            output.push('```');
-            output.push('');
-            output.push('To compare two commits:');
-            output.push('```bash');
-            output.push('git diff <commit1> <commit2>');
-            output.push('```');
+            output.push('由 Git AI 自动化测试 生成 · 作者：Alex Deng');
             output.push('');
 
             progress.report({ increment: 20, message: 'Saving file...' });
@@ -590,9 +815,48 @@ function getChecklistHtml(markdownContent) {
     const lines = markdownContent.split('\n');
     let html = '';
     let inCodeBlock = false;
+    let inTable = false;
+    let tableRows = [];
     let stats = { total: 0, checked: 0, commits: 0 };
     
-    for (const line of lines) {
+    // 处理表格
+    function processTable() {
+        if (tableRows.length < 2) return '';
+        
+        let tableHtml = '<table>';
+        tableRows.forEach((row, idx) => {
+            // 跳过分隔行 |---|---|
+            if (row.match(/^\|[\s\-:]+\|$/)) return;
+            if (row.match(/^\|[\s\-:|]+\|$/)) return;
+            
+            const cells = row.split('|').filter((c, i, arr) => i > 0 && i < arr.length - 1);
+            const tag = idx === 0 ? 'th' : 'td';
+            
+            tableHtml += '<tr>';
+            cells.forEach(cell => {
+                let cellContent = cell.trim();
+                // 处理代码块
+                cellContent = cellContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+                // 处理复选框
+                if (cellContent === '[ ]') {
+                    stats.total++;
+                    cellContent = '<input type="checkbox" onchange="updateStats()">';
+                } else if (cellContent === '[x]') {
+                    stats.total++;
+                    stats.checked++;
+                    cellContent = '<input type="checkbox" checked onchange="updateStats()">';
+                }
+                tableHtml += `<${tag}>${cellContent}</${tag}>`;
+            });
+            tableHtml += '</tr>';
+        });
+        tableHtml += '</table>';
+        return tableHtml;
+    }
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
         if (line.startsWith('```')) {
             inCodeBlock = !inCodeBlock;
             if (inCodeBlock) {
@@ -606,6 +870,21 @@ function getChecklistHtml(markdownContent) {
         if (inCodeBlock) {
             html += escapeHtml(line) + '\n';
             continue;
+        }
+        
+        // 检测表格行
+        if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+            if (!inTable) {
+                inTable = true;
+                tableRows = [];
+            }
+            tableRows.push(line);
+            continue;
+        } else if (inTable) {
+            // 表格结束
+            html += processTable();
+            inTable = false;
+            tableRows = [];
         }
         
         // 标题
@@ -637,9 +916,16 @@ function getChecklistHtml(markdownContent) {
             }
         } else if (line.startsWith('---')) {
             html += '<hr>';
+        } else if (line.startsWith('>')) {
+            html += `<blockquote>${escapeHtml(line.slice(1).trim())}</blockquote>`;
         } else if (line.trim()) {
             html += `<p>${escapeHtml(line)}</p>`;
         }
+    }
+    
+    // 处理最后的表格
+    if (inTable && tableRows.length > 0) {
+        html += processTable();
     }
 
     return `<!DOCTYPE html>
@@ -647,76 +933,67 @@ function getChecklistHtml(markdownContent) {
 <meta charset="UTF-8">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); min-height: 100vh; color: #1e293b; }
-.container { max-width: 900px; margin: 0 auto; padding: 20px; }
-.header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #a7f3d0; }
-.logo { width: 36px; height: 36px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.logo svg { width: 18px; height: 18px; color: white; }
-.title { font-size: 18px; font-weight: 700; color: #065f46; }
-.subtitle { font-size: 11px; color: #059669; margin-left: auto; }
-.stats-bar { display: flex; gap: 16px; margin-bottom: 16px; }
-.stat { background: white; padding: 10px 16px; border-radius: 8px; border: 1px solid #a7f3d0; display: flex; align-items: center; gap: 8px; }
-.stat-num { font-size: 18px; font-weight: 700; color: #059669; }
-.stat-label { font-size: 11px; color: #6b7280; }
-.progress-bar { flex: 1; background: white; padding: 10px 16px; border-radius: 8px; border: 1px solid #a7f3d0; }
-.progress-track { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); border-radius: 4px; transition: width 0.3s; }
-.progress-text { font-size: 11px; color: #6b7280; margin-top: 4px; }
-.card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1); border: 1px solid #a7f3d0; overflow: hidden; max-height: 65vh; overflow-y: auto; }
-.content { padding: 16px; }
-h1 { font-size: 16px; color: #065f46; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #d1fae5; }
-h2 { font-size: 14px; color: #047857; margin: 16px 0 8px; padding: 8px 12px; background: #ecfdf5; border-radius: 6px; border-left: 3px solid #10b981; }
-h3 { font-size: 12px; color: #059669; margin: 12px 0 6px; }
-p { font-size: 12px; color: #6b7280; margin: 4px 0; }
-hr { border: none; height: 1px; background: #d1fae5; margin: 12px 0; }
-.checkbox { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 12px; }
-.checkbox input { margin-top: 2px; accent-color: #10b981; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; font-size: 11px; }
+.container { max-width: 100%; margin: 0 auto; padding: 8px 12px; }
+.header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+.logo { width: 24px; height: 24px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.logo svg { width: 12px; height: 12px; color: white; }
+.title { font-size: 13px; font-weight: 600; color: #065f46; }
+.subtitle { font-size: 10px; color: #059669; margin-left: auto; }
+.stats-bar { display: flex; gap: 8px; margin-bottom: 6px; }
+.stat { background: white; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 4px; }
+.stat-num { font-size: 13px; font-weight: 600; color: #059669; }
+.stat-label { font-size: 10px; color: #6b7280; }
+.progress-bar { flex: 1; background: white; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0; }
+.progress-track { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: #10b981; border-radius: 2px; transition: width 0.3s; }
+.progress-text { font-size: 10px; color: #6b7280; margin-top: 2px; }
+.card { background: white; border-radius: 6px; border: 1px solid #e2e8f0; overflow: hidden; max-height: calc(100vh - 80px); overflow-y: auto; }
+.content { padding: 8px; }
+h1 { font-size: 12px; color: #065f46; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; display: none; }
+h2 { font-size: 11px; color: #047857; margin: 6px 0 4px; padding: 4px 8px; background: #f0fdf4; border-radius: 3px; border-left: 2px solid #10b981; font-weight: 600; }
+h3 { font-size: 10px; color: #059669; margin: 4px 0 2px; font-weight: 500; }
+p { font-size: 10px; color: #6b7280; margin: 2px 0; line-height: 1.3; }
+hr { border: none; height: 1px; background: #e2e8f0; margin: 6px 0; }
+.checkbox { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 10px; }
+.checkbox input { accent-color: #10b981; width: 12px; height: 12px; }
 .checkbox .done { text-decoration: line-through; color: #9ca3af; }
-.meta { font-size: 11px; color: #6b7280; padding: 2px 0; }
-.meta strong { color: #374151; }
-.file { font-size: 11px; padding: 2px 0; }
-.file code { background: #f0fdf4; color: #059669; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 10px; }
-.info { font-size: 11px; color: #6b7280; margin: 4px 0; }
-.info strong { color: #065f46; }
-.code { background: #1e293b; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; font-family: monospace; font-size: 11px; overflow-x: auto; margin: 8px 0; }
-.footer { text-align: center; padding: 12px; font-size: 10px; color: #6ee7b7; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #ecfdf5; }
-::-webkit-scrollbar-thumb { background: #6ee7b7; border-radius: 3px; }
+.meta, .file, .info { font-size: 10px; color: #6b7280; padding: 1px 0; }
+.meta strong, .info strong { color: #374151; }
+.file code { background: #f0fdf4; color: #059669; padding: 0 3px; border-radius: 2px; font-family: monospace; font-size: 9px; }
+.code { background: #1e293b; color: #e2e8f0; padding: 6px 8px; border-radius: 4px; font-family: monospace; font-size: 10px; overflow-x: auto; margin: 4px 0; }
+table { width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 10px; border: 1px solid #d1d5db; }
+th { padding: 5px 6px; text-align: left; background: #10b981; color: white; font-weight: 500; font-size: 10px; border: 1px solid #059669; position: sticky; top: 0; white-space: nowrap; }
+td { padding: 4px 6px; background: white; border: 1px solid #e5e7eb; color: #374151; line-height: 1.3; }
+tr:nth-child(even) td { background: #f9fafb; }
+tr:hover td { background: #ecfdf5; }
+td code { background: #f3f4f6; color: #1f2937; padding: 1px 4px; border-radius: 2px; font-family: 'Consolas', monospace; font-size: 9px; }
+td input[type="checkbox"] { width: 14px; height: 14px; accent-color: #10b981; cursor: pointer; }
+blockquote { background: #f0fdf4; border-left: 2px solid #10b981; padding: 4px 8px; margin: 4px 0; font-size: 10px; color: #065f46; }
+.footer { text-align: center; padding: 4px; font-size: 9px; color: #9ca3af; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
         <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
-        <span class="title">测试清单</span>
+        <span class="title">Git 测试清单</span>
         <span class="subtitle">by Alex Deng</span>
-    </div>
-    <div class="stats-bar">
-        <div class="stat"><span class="stat-num" id="commits">${stats.commits}</span><span class="stat-label">提交</span></div>
         <div class="stat"><span class="stat-num" id="total">${stats.total}</span><span class="stat-label">测试项</span></div>
-        <div class="progress-bar">
-            <div class="progress-track"><div class="progress-fill" id="progress" style="width: ${stats.total ? (stats.checked / stats.total * 100) : 0}%"></div></div>
-            <div class="progress-text"><span id="checked">${stats.checked}</span> / ${stats.total} 已完成</div>
-        </div>
+        <div class="stat"><span class="stat-num" id="checked">${stats.checked}</span><span class="stat-label">已完成</span></div>
     </div>
     <div class="card"><div class="content">${html}</div></div>
-    <div class="footer">Git AI 自动化测试</div>
+    <div class="footer">Git AI 自动化测试 · Alex Deng</div>
 </div>
 <script>
 function updateStats() {
-    const checkboxes = document.querySelectorAll('.checkbox input');
+    const cbs = document.querySelectorAll('input[type="checkbox"]');
     let checked = 0;
-    checkboxes.forEach(cb => {
-        if (cb.checked) {
-            checked++;
-            cb.nextElementSibling.classList.add('done');
-        } else {
-            cb.nextElementSibling.classList.remove('done');
-        }
-    });
+    cbs.forEach(cb => { if (cb.checked) checked++; });
     document.getElementById('checked').textContent = checked;
-    document.getElementById('progress').style.width = (checked / checkboxes.length * 100) + '%';
 }
 </script>
 </body></html>`;
@@ -1652,6 +1929,32 @@ class SidebarViewProvider {
                     font-size: 9px; color: #9ca3af; text-align: center;
                     margin-top: 6px; font-style: italic;
                 }
+                .refresh-header-btn {
+                    width: 32px; height: 32px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border: none; border-radius: 8px;
+                    cursor: pointer; display: flex;
+                    align-items: center; justify-content: center;
+                    transition: all 0.2s; flex-shrink: 0;
+                }
+                .refresh-header-btn:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+                }
+                .refresh-header-btn:active { transform: scale(0.95); }
+                .refresh-header-btn svg { width: 16px; height: 16px; color: white; }
+                .section-title-toggle {
+                    font-size: 9px; font-weight: 600; color: #9ca3af;
+                    text-transform: uppercase; letter-spacing: 0.5px;
+                    margin-bottom: 6px; cursor: pointer;
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 4px; border-radius: 4px;
+                    transition: all 0.2s;
+                }
+                .section-title-toggle:hover { background: #f3f4f6; color: #6b7280; }
+                .toggle-icon { width: 14px; height: 14px; transition: transform 0.2s; }
+                .toggle-icon.open { transform: rotate(180deg); }
+                .advanced-content { margin-top: 6px; }
                 .refresh-btn {
                     display: flex; align-items: center; justify-content: center;
                     gap: 4px; width: 100%; padding: 6px;
@@ -1678,10 +1981,13 @@ class SidebarViewProvider {
                     <div class="title">Git AI 自动化测试</div>
                     <div class="subtitle">by <span class="author">Alex Deng</span></div>
                 </div>
+                <button class="refresh-header-btn" onclick="send('refresh')" title="刷新">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </button>
             </div>
             
             <div class="section">
-                <div class="section-title">📋 生成最近 Git 提交清单</div>
+                <div class="section-title">根据以下 Git 提交次数生成测试清单</div>
                 <div class="quick-grid">
                     <button class="quick-btn" onclick="send('generate1')">
                         <div class="quick-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><line x1="1" y1="12" x2="7" y2="12"></line><line x1="17" y1="12" x2="23" y2="12"></line></svg></div>
@@ -1722,24 +2028,6 @@ class SidebarViewProvider {
             <div class="divider"></div>
             
             <div class="section">
-                <div class="section-title">🔧 高级功能</div>
-                <button class="btn" onclick="send('generateEnhanced')">
-                    <div class="btn-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></div>
-                    <span class="btn-text">增强版（含统计）</span>
-                </button>
-                <button class="btn" onclick="send('generateByAuthor')">
-                    <div class="btn-icon pink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
-                    <span class="btn-text">按作者筛选</span>
-                </button>
-                <button class="btn" onclick="send('generateByDate')">
-                    <div class="btn-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
-                    <span class="btn-text">按日期范围</span>
-                </button>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="section">
                 <div class="section-title">📊 查看</div>
                 <div class="tools-row">
                     <button class="btn" onclick="send('viewHistory')">
@@ -1758,16 +2046,46 @@ class SidebarViewProvider {
             <div class="section">
                 <div class="section-title">最近提交</div>
                 <div class="commits-list">${commitsHtml}</div>
-                <button class="refresh-btn" onclick="send('refresh')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                    刷新
-                </button>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="section">
+                <div class="section-title-toggle" onclick="toggleAdvanced()">
+                    <span>🔧 高级功能</span>
+                    <svg class="toggle-icon" id="toggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <div class="advanced-content" id="advancedContent" style="display: none;">
+                    <button class="btn" onclick="send('generateEnhanced')">
+                        <div class="btn-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></div>
+                        <span class="btn-text">增强版（含统计）</span>
+                    </button>
+                    <button class="btn" onclick="send('generateByAuthor')">
+                        <div class="btn-icon pink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+                        <span class="btn-text">按作者筛选</span>
+                    </button>
+                    <button class="btn" onclick="send('generateByDate')">
+                        <div class="btn-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
+                        <span class="btn-text">按日期范围</span>
+                    </button>
+                </div>
             </div>
             
             <script>
                 const vscode = acquireVsCodeApi();
                 function send(cmd) { vscode.postMessage({ command: cmd }); }
                 function viewCommit(hash) { vscode.postMessage({ command: 'viewCommit', hash: hash }); }
+                function toggleAdvanced() {
+                    const content = document.getElementById('advancedContent');
+                    const icon = document.getElementById('toggleIcon');
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        icon.classList.add('open');
+                    } else {
+                        content.style.display = 'none';
+                        icon.classList.remove('open');
+                    }
+                }
             </script>
         </body>
         </html>`;
@@ -1811,51 +2129,170 @@ async function enableGitHook() {
         fs.writeFileSync(postCommitPath + '.backup', existingContent);
     }
 
-    // 创建跨平台的 post-commit 钩子脚本（使用 node.js）
-    // 这个脚本会被 Git 调用，使用 sh 语法但调用 node
+    // 创建跨平台的 post-commit 钩子脚本
     const hookScript = `#!/bin/sh
-# Git Test Checklist - Auto generate on commit
-# Created by git-test-checklist extension
+# Git AI 自动化测试 - 提交钩子
+# Created by git-test-checklist extension (Alex Deng)
 
 # 获取提交信息
 COMMIT_HASH=$(git rev-parse --short HEAD)
+COMMIT_HASH_FULL=$(git rev-parse HEAD)
 COMMIT_MSG=$(git log -1 --pretty=format:"%s")
 COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
-COMMIT_DATE=$(git log -1 --pretty=format:"%ci")
+COMMIT_DATE=$(git log -1 --pretty=format:"%Y-%m-%d %H:%M:%S")
 
 # 测试清单文件
 CHECKLIST_FILE="test-checklist.md"
 
-# 创建或追加内容
+# 获取变更文件列表
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-status -r HEAD)
+ADDED_COUNT=$(echo "$CHANGED_FILES" | grep -c "^A" || echo "0")
+MODIFIED_COUNT=$(echo "$CHANGED_FILES" | grep -c "^M" || echo "0")
+DELETED_COUNT=$(echo "$CHANGED_FILES" | grep -c "^D" || echo "0")
+
+# 创建文件头（如果不存在）
 if [ ! -f "$CHECKLIST_FILE" ]; then
     cat > "$CHECKLIST_FILE" << 'HEADER'
-# Git 提交测试清单
+# 📋 Git 提交测试清单
 
-> 自动生成的测试清单，每次提交后更新。
+> 🤖 由 **Git AI 自动化测试** 自动生成，每次提交后更新。
+> 
+> 作者：Alex Deng
 
 ---
 
 HEADER
 fi
 
-# 追加新提交
+# 生成测试建议（根据文件类型和提交信息）
+TEST_SUGGESTIONS=""
+
+# 检查提交信息关键词
+case "$COMMIT_MSG" in
+    *fix*|*bug*|*修复*|*修复*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🐛 验证 Bug 是否已修复
+- [ ] 🔄 回归测试相关功能"
+        ;;
+esac
+
+case "$COMMIT_MSG" in
+    *feat*|*feature*|*新增*|*添加*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] ✨ 测试新功能完整流程
+- [ ] 📱 测试不同场景下的表现"
+        ;;
+esac
+
+case "$COMMIT_MSG" in
+    *refactor*|*重构*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🔧 确认重构后功能不变
+- [ ] ⚡ 性能测试"
+        ;;
+esac
+
+case "$COMMIT_MSG" in
+    *style*|*样式*|*UI*|*ui*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🎨 检查 UI 显示是否正常
+- [ ] 📐 测试不同分辨率适配"
+        ;;
+esac
+
+case "$COMMIT_MSG" in
+    *api*|*API*|*接口*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🔌 API 接口测试
+- [ ] 📊 验证返回数据格式"
+        ;;
+esac
+
+case "$COMMIT_MSG" in
+    *数据库*|*database*|*sql*|*SQL*)
+        TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🗄️ 数据库迁移验证
+- [ ] 💾 数据完整性检查"
+        ;;
+esac
+
+# 根据文件类型添加建议
+if echo "$CHANGED_FILES" | grep -q "\\.js\\$\\|\\.ts\\$"; then
+    TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 📜 JavaScript/TypeScript 逻辑测试"
+fi
+
+if echo "$CHANGED_FILES" | grep -q "\\.css\\$\\|\\.scss\\$\\|\\.less\\$"; then
+    TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🎨 样式变更视觉检查"
+fi
+
+if echo "$CHANGED_FILES" | grep -q "\\.html\\$\\|\\.vue\\$\\|\\.jsx\\$\\|\\.tsx\\$"; then
+    TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🖼️ 页面渲染测试"
+fi
+
+if echo "$CHANGED_FILES" | grep -q "\\.json\\$"; then
+    TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] ⚙️ 配置文件变更验证"
+fi
+
+if echo "$CHANGED_FILES" | grep -q "\\.sql\\$"; then
+    TEST_SUGGESTIONS="$TEST_SUGGESTIONS
+- [ ] 🗃️ SQL 脚本执行验证"
+fi
+
+# 如果没有特定建议，添加通用建议
+if [ -z "$TEST_SUGGESTIONS" ]; then
+    TEST_SUGGESTIONS="
+- [ ] ✅ 功能测试
+- [ ] 🔄 回归测试"
+fi
+
+# 生成文件变更表格
+FILE_TABLE="| 状态 | 文件路径 |
+|:----:|----------|"
+
+echo "$CHANGED_FILES" | while IFS= read -r line; do
+    if [ -n "$line" ]; then
+        STATUS=$(echo "$line" | cut -f1)
+        FILE=$(echo "$line" | cut -f2)
+        case "$STATUS" in
+            A) STATUS_ICON="➕ 新增" ;;
+            M) STATUS_ICON="✏️ 修改" ;;
+            D) STATUS_ICON="❌ 删除" ;;
+            R*) STATUS_ICON="📝 重命名" ;;
+            *) STATUS_ICON="$STATUS" ;;
+        esac
+        FILE_TABLE="$FILE_TABLE
+| $STATUS_ICON | \\\`$FILE\\\` |"
+    fi
+done
+
+# 追加新提交到清单
 cat >> "$CHECKLIST_FILE" << COMMIT
-## $COMMIT_MSG
+## 📌 $COMMIT_MSG
 
-- **哈希**: \`$COMMIT_HASH\`
-- **作者**: $COMMIT_AUTHOR
-- **时间**: $COMMIT_DATE
+| 属性 | 值 |
+|------|-----|
+| 🔖 哈希 | \`$COMMIT_HASH\` |
+| 👤 作者 | $COMMIT_AUTHOR |
+| 📅 时间 | $COMMIT_DATE |
+| 📊 变更 | ➕$ADDED_COUNT ✏️$MODIFIED_COUNT ❌$DELETED_COUNT |
 
-### 测试项
-- [ ] 功能测试
-- [ ] 回归测试
-- [ ] 代码审查
+### 📁 变更文件
+
+$FILE_TABLE
+
+### 🧪 测试建议
+$TEST_SUGGESTIONS
+- [ ] 👀 代码审查
 
 ---
 
 COMMIT
 
-echo "[Git Hook] 测试清单已更新: $CHECKLIST_FILE"
+echo "✅ [Git Hook] 测试清单已更新: $CHECKLIST_FILE"
 `;
 
     try {
