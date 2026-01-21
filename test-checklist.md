@@ -43,3 +43,16 @@
 
 ---
 
+## feat: add git hook auto-refresh, improve sidebar UI with 1/5/10 commits options
+
+- **Hash**: `d9ccb49`
+- **Author**: alex.deng
+- **Date**: 2026-01-21 17:59:22 +0800
+
+### Test Items
+- [ ] Functional test
+- [ ] Regression test
+- [ ] Code review
+
+---
+
