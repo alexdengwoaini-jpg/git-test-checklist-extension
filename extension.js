@@ -166,6 +166,30 @@ function activate(context) {
         sidebarProvider.refresh();
     });
 
+    // 监听 Git 变化，自动刷新侧边栏
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+        // 创建文件监听器（监听 .git 目录变化）
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(workspaceFolder, '.git/{HEAD,index,COMMIT_EDITMSG}')
+        );
+        
+        // 防抖：避免频繁刷新
+        let refreshTimeout;
+        const debouncedRefresh = () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(() => {
+                sidebarProvider.refresh();
+                console.log('Git 变化检测到，侧边栏已刷新');
+            }, 1000);
+        };
+        
+        watcher.onDidChange(debouncedRefresh);
+        watcher.onDidCreate(debouncedRefresh);
+        
+        context.subscriptions.push(watcher);
+    }
+
     context.subscriptions.push(
         generateCmd,
         generate1Cmd,
@@ -1835,10 +1859,11 @@ echo "[Git Hook] 测试清单已更新: $CHECKLIST_FILE"
 `;
 
     try {
-        // 写入钩子文件
-        fs.writeFileSync(postCommitPath, hookScript, { encoding: 'utf8' });
+        // 写入钩子文件（使用 Buffer 避免 BOM）
+        const buffer = Buffer.from(hookScript, 'utf8');
+        fs.writeFileSync(postCommitPath, buffer);
         
-        // 设置执行权限（在 Windows Git Bash 中也需要）
+        // 设置执行权限
         if (process.platform !== 'win32') {
             fs.chmodSync(postCommitPath, 0o755);
         }
@@ -1851,11 +1876,7 @@ echo "[Git Hook] 测试清单已更新: $CHECKLIST_FILE"
         }
         
         vscode.window.showInformationMessage('✅ Git 钩子已开启！每次 git commit 后将自动更新测试清单');
-        
-        // 验证钩子是否创建成功
-        if (fs.existsSync(postCommitPath)) {
-            console.log('Git hook created at:', postCommitPath);
-        }
+        console.log('Git hook created at:', postCommitPath);
     } catch (error) {
         vscode.window.showErrorMessage(`开启 Git 钩子失败: ${error.message}`);
         console.error('Enable git hook error:', error);
